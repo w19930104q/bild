@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Unify the luminance statistic used by `segment.Threshold` and `effect.Grayscale` behind `util.Luminance` (0.3R + 0.6G + 0.1B, rounded to the nearest integer and clamped to [0, 255]). Thresholding an image directly now produces the same classification as thresholding its grayscale copy; previously thresholding truncated the fractional luminance while grayscale rounded it.
+- Document and test the boundary and empty-input contracts of `segment.Threshold`, `effect.Grayscale` and the `histogram` statistics (`Min`, `Max`, `Cumulative`, `Image`).
+
 ## 0.17.1
 - Fix transparent pixels when resizing with the Box filter by @youdie006 in https://github.com/anthonynsimon/bild/pull/115
 - Bump golang.org/x/image from 0.44.0 to 0.45.0 to address CVE-2026-46603 in the VP8L decoder, reported in https://github.com/anthonynsimon/bild/pull/116

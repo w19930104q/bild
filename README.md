@@ -317,6 +317,12 @@ The CLI selects the encoder from the output file extension (`.png`, `.jpg`/`.jpe
 ### Threshold
     result := segment.Threshold(img, 128)
 
+Pixels are classified by the canonical perceptual luminance `util.Luminance`
+(0.3R + 0.6G + 0.1B, rounded to the nearest integer), the same statistic used
+by `effect.Grayscale`, so thresholding an image directly is equivalent to
+thresholding its grayscale copy. Fully transparent black pixels are always
+white; an empty input returns an empty grayscale image.
+
 ![example](assets/img/threshold.jpg)
 
 

@@ -38,8 +38,31 @@ func srank(c color.RGBA) uint {
 }
 
 // Rank a color based on a color perception heuristic.
+// It returns the unrounded luminance, computed as 0.3R + 0.6G + 0.1B.
+//
+// For an 8-bit luminance value use Luminance instead, which applies the
+// same weights and guarantees a consistent rounding and clamping.
 func Rank(c color.RGBA) float64 {
 	return float64(c.R)*0.3 + float64(c.G)*0.6 + float64(c.B)*0.1
+}
+
+// Luminance returns the perceptual luminance of a color as an 8-bit value.
+// It uses the same weights as Rank and effect.Grayscale (0.3R + 0.6G + 0.1B)
+// and rounds to the nearest integer, clamping the result to the range [0, 255].
+// The alpha channel does not participate in the calculation.
+//
+// It is the single canonical statistic shared by grayscale conversion and
+// thresholding, so that segmenting an image directly produces the same
+// classification as thresholding its grayscale counterpart.
+func Luminance(c color.RGBA) uint8 {
+	l := Rank(c) + 0.5
+	if l >= 255 {
+		return 255
+	}
+	if l <= 0 {
+		return 0
+	}
+	return uint8(l)
 }
 
 // RGBAToString returns a string representation of the Hex values contained in an image.RGBA.

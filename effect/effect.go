@@ -28,13 +28,16 @@ func Invert(src image.Image) *image.RGBA {
 }
 
 // Grayscale returns a copy of the image in Grayscale using the weights
-// 0.3R + 0.6G + 0.1B as a heuristic.
+// 0.3R + 0.6G + 0.1B as a heuristic. The luminance is computed with
+// util.Luminance, which is the same canonical statistic used by
+// segment.Threshold.
 func Grayscale(img image.Image) *image.RGBA {
 	return GrayscaleWithWeights(img, 0.3, 0.6, 0.1)
 }
 
 // GrayscaleWithWeights returns a copy of the image in Grayscale using the given weights.
 // The weights should be in the range 0.0 to 1.0 inclusive.
+// The weighted sum is rounded to the nearest 8-bit value.
 func GrayscaleWithWeights(img image.Image, r, g, b float64) *image.RGBA {
 	src := clone.AsRGBA(img)
 	bounds := src.Bounds()
@@ -44,6 +47,11 @@ func GrayscaleWithWeights(img image.Image, r, g, b float64) *image.RGBA {
 		return &image.RGBA{}
 	}
 
+	// Use the canonical luminance statistic for the default perceptual
+	// weights, guaranteeing that grayscale conversion and thresholding
+	// classify every pixel with the same value.
+	canonicalWeights := r == 0.3 && g == 0.6 && b == 0.1
+
 	dst := image.NewRGBA(bounds)
 
 	parallel.Line(srcH, func(start, end int) {
@@ -51,8 +59,18 @@ func GrayscaleWithWeights(img image.Image, r, g, b float64) *image.RGBA {
 			for x := 0; x < srcW; x++ {
 				pos := y*src.Stride + x*4
 
-				c := r*float64(src.Pix[pos+0]) + g*float64(src.Pix[pos+1]) + b*float64(src.Pix[pos+2])
-				k := uint8(c + 0.5)
+				var k uint8
+				if canonicalWeights {
+					k = util.Luminance(color.RGBA{
+						R: src.Pix[pos+0],
+						G: src.Pix[pos+1],
+						B: src.Pix[pos+2],
+						A: src.Pix[pos+3],
+					})
+				} else {
+					c := r*float64(src.Pix[pos+0]) + g*float64(src.Pix[pos+1]) + b*float64(src.Pix[pos+2])
+					k = uint8(c + 0.5)
+				}
 				dst.Pix[pos] = k
 				dst.Pix[pos+1] = k
 				dst.Pix[pos+2] = k

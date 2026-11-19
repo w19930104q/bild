@@ -46,8 +46,8 @@ func TestThreshold(t *testing.T) {
 				Rect:   image.Rect(0, 0, 2, 2),
 				Stride: 2,
 				Pix: []uint8{
-					0x00, 0xFF,
-					0xFF, 0x00,
+					0xFF, 0xFF,
+					0xFF, 0xFF,
 				},
 			},
 		},

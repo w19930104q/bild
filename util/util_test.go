@@ -69,6 +69,68 @@ func TestRank(t *testing.T) {
 	}
 }
 
+func TestLuminance(t *testing.T) {
+	cases := []struct {
+		value    color.RGBA
+		expected uint8
+	}{
+		{
+			value:    color.RGBA{0, 0, 0, 0},
+			expected: 0,
+		},
+		{
+			value:    color.RGBA{255, 255, 255, 255},
+			expected: 255,
+		},
+		{
+			value:    color.RGBA{128, 128, 128, 255},
+			expected: 128,
+		},
+		{
+			// 0.3*128 + 0.6*64 + 0.1*32 = 80 exactly
+			value:    color.RGBA{128, 64, 32, 255},
+			expected: 80,
+		},
+		{
+			// 0.3*170 + 0.6*202 + 0.1*123 = 184.5, rounds to 185
+			value:    color.RGBA{170, 202, 123, 255},
+			expected: 185,
+		},
+		{
+			// 0.3 + 1.2 + 0.3 = 1.8, rounds to 2
+			value:    color.RGBA{1, 2, 3, 255},
+			expected: 2,
+		},
+		{
+			// 0.3*113 + 0.1*255 = 59.4, rounds to 59
+			value:    color.RGBA{113, 0, 255, 255},
+			expected: 59,
+		},
+		{
+			// Alpha must not participate in the statistic.
+			value:    color.RGBA{170, 202, 123, 1},
+			expected: 185,
+		},
+	}
+
+	for _, c := range cases {
+		actual := Luminance(c.value)
+		if actual != c.expected {
+			t.Errorf("Luminance(%v): expected: %#v, actual: %#v", c.value, c.expected, actual)
+		}
+	}
+}
+
+// TestLuminanceClamp ensures the statistic is always within the 8-bit range.
+func TestLuminanceClamp(t *testing.T) {
+	if got := Luminance(color.RGBA{255, 255, 255, 0}); got != 255 {
+		t.Errorf("max luminance: expected 255, got %d", got)
+	}
+	if got := Luminance(color.RGBA{0, 0, 0, 255}); got != 0 {
+		t.Errorf("min luminance: expected 0, got %d", got)
+	}
+}
+
 func TestRGBASlicesEqual(t *testing.T) {
 	cases := []struct {
 		a        []color.RGBA

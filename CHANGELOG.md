@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Fix convolution wrap edge handling when the kernel radius is larger than the image dimensions: wrapped indices now always resolve modulo the image size, matching the per-pixel reference semantics for every kernel size. The default edge-extend strategy is unchanged.
+
 ## 0.17.1
 - Fix transparent pixels when resizing with the Box filter by @youdie006 in https://github.com/anthonynsimon/bild/pull/115
 - Bump golang.org/x/image from 0.44.0 to 0.45.0 to address CVE-2026-46603 in the VP8L decoder, reported in https://github.com/anthonynsimon/bild/pull/116

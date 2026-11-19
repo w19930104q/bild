@@ -195,6 +195,36 @@ func TestConvolve(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Kernel radius larger than the image dimensions: wrapped indices
+			// must still resolve to source pixels (modulo the image size).
+			options: &Options{Bias: 0, Wrap: true},
+			kernel: &Kernel{[]float64{
+				1, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0,
+			}, 7, 7},
+			value: &image.RGBA{
+				Rect:   image.Rect(0, 0, 2, 2),
+				Stride: 2 * 4,
+				Pix: []uint8{
+					0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x80, 0x80, 0xFF,
+					0x40, 0x40, 0x40, 0xFF, 0x10, 0x10, 0x10, 0xFF,
+				},
+			},
+			expected: &image.RGBA{
+				Rect:   image.Rect(0, 0, 2, 2),
+				Stride: 2 * 4,
+				Pix: []uint8{
+					0x10, 0x10, 0x10, 0xFF, 0x40, 0x40, 0x40, 0xFF,
+					0x80, 0x80, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

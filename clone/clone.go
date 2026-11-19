@@ -118,22 +118,24 @@ func extend(img image.Image, padX, padY int) *image.RGBA {
 func wrap(img image.Image, padX, padY int) *image.RGBA {
 	dst := noFill(img, padX, padY)
 	paddedW, paddedH := dst.Bounds().Dx(), dst.Bounds().Dy()
+	w, h := paddedW-2*padX, paddedH-2*padY
+
+	// Degenerate case: no source pixels to wrap around
+	if w <= 0 || h <= 0 {
+		return dst
+	}
 
 	parallel.Line(paddedH, func(start, end int) {
 		for y := start; y < end; y++ {
 			iy := y
-			if iy < padY {
-				iy = (paddedH - padY) - ((padY - y) % (paddedH - padY*2))
-			} else if iy >= paddedH-padY {
-				iy = padY - ((padY - y) % (paddedH - padY*2))
+			if y < padY || y >= paddedH-padY {
+				iy = padY + positiveMod(y-padY, h)
 			}
 
 			for x := 0; x < paddedW; x++ {
 				ix := x
-				if ix < padX {
-					ix = (paddedW - padX) - ((padX - x) % (paddedW - padX*2))
-				} else if ix >= paddedW-padX {
-					ix = padX - ((padX - x) % (paddedW - padX*2))
+				if x < padX || x >= paddedW-padX {
+					ix = padX + positiveMod(x-padX, w)
 				} else if iy == y {
 					// This only enters if we are not in a y-padded area or
 					// x-padded area, so nothing to extend here.
@@ -154,4 +156,14 @@ func wrap(img image.Image, padX, padY int) *image.RGBA {
 	})
 
 	return dst
+}
+
+// positiveMod returns the Euclidean (non-negative) remainder of a divided by n.
+// n must be greater than zero.
+func positiveMod(a, n int) int {
+	m := a % n
+	if m < 0 {
+		m += n
+	}
+	return m
 }

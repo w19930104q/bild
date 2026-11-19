@@ -25,7 +25,8 @@ func RGBToHSL(c color.RGBA) (float64, float64, float64) {
 		return h, s, l
 	}
 
-	// Should it be smaller than or equals instead?
+	// At l == 0.5 both denominators are equal to 1, so either
+	// branch would produce the same result.
 	if l < 0.5 {
 		s = delta / (max + min)
 	} else {
@@ -49,10 +50,14 @@ func RGBToHSL(c color.RGBA) (float64, float64, float64) {
 }
 
 // HSLToRGB converts from HSL to RGB color model.
-// Parameter h is the hue and its range is from 0 to 360 degrees.
+// Parameter h is the hue in degrees; any value is accepted and it is wrapped
+// into the range [0, 360), so 360 and 0 map to the same hue.
 // Parameter s is the saturation and its range is from 0.0 to 1.0.
 // Parameter l is the lightness and its range is from 0.0 to 1.0.
+// The resulting channels are rounded to the nearest uint8 and clamped to
+// the range 0 to 255.
 func HSLToRGB(h, s, l float64) color.RGBA {
+	h = normalizeHue(h)
 
 	var r, g, b float64
 	if s == 0 {
@@ -146,10 +151,15 @@ func RGBToHSV(c color.RGBA) (h, s, v float64) {
 }
 
 // HSVToRGB converts from HSV to RGB color model.
-// Parameter h is the hue and its range is from 0 to 360 degrees.
+// Parameter h is the hue in degrees; any value is accepted and it is wrapped
+// into the range [0, 360), so 360 and 0 map to the same hue.
 // Parameter s is the saturation and its range is from 0.0 to 1.0.
 // Parameter v is the value and its range is from 0.0 to 1.0.
+// The resulting channels are rounded to the nearest uint8 and clamped to
+// the range 0 to 255.
 func HSVToRGB(h, s, v float64) color.RGBA {
+	h = normalizeHue(h)
+
 	var i, f, p, q, t float64
 
 	// Achromatic
@@ -197,4 +207,15 @@ func HSVToRGB(h, s, v float64) color.RGBA {
 	outG := uint8(f64.Clamp(g*255+0.5, 0, 255))
 	outB := uint8(f64.Clamp(b*255+0.5, 0, 255))
 	return color.RGBA{outR, outG, outB, 0xFF}
+}
+
+// normalizeHue wraps a hue angle in degrees into the range [0, 360).
+// The mapping is deterministic: 360 and 0 denote the same hue, and
+// negative angles wrap around (e.g. -90 becomes 270).
+func normalizeHue(h float64) float64 {
+	h = math.Mod(h, 360)
+	if h < 0 {
+		h += 360
+	}
+	return h
 }

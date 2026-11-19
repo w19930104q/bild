@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+- Fix `util.HSVToRGB` and `util.HSLToRGB` producing wrong colors for hue angles outside `[0, 360)` (e.g. 360, negatives); hue now wraps deterministically, fixing color shifts in `adjust.Hue` with negative changes
+- Add `util.Uint8ToUint16`, `util.Uint16ToUint8`, `util.NRGBAToRGBA` and `util.RGBAToNRGBA` conversion helpers with deterministic clamping/rounding, consistent with the standard library color models
+- Fix `noise.Gaussian` clamping out-of-range samples deterministically instead of relying on implementation-defined float64 to uint8 conversion
+
 ## 0.17.1
 - Fix transparent pixels when resizing with the Box filter by @youdie006 in https://github.com/anthonynsimon/bild/pull/115
 - Bump golang.org/x/image from 0.44.0 to 0.45.0 to address CVE-2026-46603 in the VP8L decoder, reported in https://github.com/anthonynsimon/bild/pull/116

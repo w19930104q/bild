@@ -129,6 +129,22 @@ func main() {
 
 The CLI selects the encoder from the output file extension (`.png`, `.jpg`/`.jpeg`, `.bmp`, `.webp`).
 
+## Color and bit-depth conversion
+
+All processing functions operate on 8-bit RGBA pixels; sources of any other
+color model (NRGBA, 16-bit, Gray, Paletted, YCbCr, ...) are converted with the
+same semantics as the standard library's `image/draw`, so results are
+consistent across formats. The `util` package additionally provides
+deterministic, reference-compatible conversion helpers:
+
+- `util.RGBToHSL` / `util.HSLToRGB` and `util.RGBToHSV` / `util.HSVToRGB` —
+  color model conversions. Hue angles wrap into `[0, 360)` and output channels
+  are rounded to the nearest uint8 and clamped to `[0, 255]`.
+- `util.Uint8ToUint16` / `util.Uint16ToUint8` — bit-depth conversion matching
+  the standard library's color models (lossless 8→16→8 round trip).
+- `util.NRGBAToRGBA` / `util.RGBAToNRGBA` — alpha premultiplication and its
+  inverse, matching `color.RGBAModel` / `color.NRGBAModel` for every input.
+
 # Output examples
 ## Adjustment
     import "github.com/anthonynsimon/bild/adjust"

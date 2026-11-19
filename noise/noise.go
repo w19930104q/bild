@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/anthonynsimon/bild/math/f64"
 	"github.com/anthonynsimon/bild/parallel"
 	"github.com/anthonynsimon/bild/perlin"
 )
@@ -30,7 +31,10 @@ func init() {
 		return 0xFF * uint8(rand.Intn(2))
 	}
 	Gaussian = func() uint8 {
-		return uint8(rand.NormFloat64()*32.0 + 128.0)
+		// Clamp before converting to uint8: converting an out-of-range
+		// float64 to uint8 is implementation-dependent, so clamping keeps
+		// the result deterministic across platforms.
+		return uint8(f64.Clamp(rand.NormFloat64()*32.0+128.0, 0, 255))
 	}
 }
 

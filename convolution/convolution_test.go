@@ -205,6 +205,122 @@ func TestConvolve(t *testing.T) {
 	}
 }
 
+func TestConvolveExtremeSizes(t *testing.T) {
+	cases := []struct {
+		desc     string
+		wrap     bool
+		kernel   *Kernel
+		value    image.Image
+		expected *image.RGBA
+	}{
+		{
+			// On a 1x1 image every neighbor of the single pixel is itself,
+			// so a 3x3 all-ones kernel must sum the pixel nine times.
+			// Previously EdgeWrap read unpadded zero pixels and only the
+			// center tap contributed (one times instead of nine).
+			desc: "1x1 wrap all-ones 3x3",
+			wrap: true,
+			kernel: &Kernel{[]float64{
+				1, 1, 1,
+				1, 1, 1,
+				1, 1, 1,
+			}, 3, 3},
+			value: &image.RGBA{
+				Rect:   image.Rect(0, 0, 1, 1),
+				Stride: 4,
+				Pix:    []uint8{0x0A, 0x14, 0x1E, 0xFF},
+			},
+			expected: &image.RGBA{
+				Rect:   image.Rect(0, 0, 1, 1),
+				Stride: 4,
+				// 10*9=90, 20*9=180, 30*9=270 -> clamped to 255
+				Pix: []uint8{0x5A, 0xB4, 0xFF, 0xFF},
+			},
+		},
+		{
+			// EdgeExtend on a 1x1 image must yield the same nine-times sum.
+			desc: "1x1 extend all-ones 3x3",
+			wrap: false,
+			kernel: &Kernel{[]float64{
+				1, 1, 1,
+				1, 1, 1,
+				1, 1, 1,
+			}, 3, 3},
+			value: &image.RGBA{
+				Rect:   image.Rect(0, 0, 1, 1),
+				Stride: 4,
+				Pix:    []uint8{0x0A, 0x14, 0x1E, 0xFF},
+			},
+			expected: &image.RGBA{
+				Rect:   image.Rect(0, 0, 1, 1),
+				Stride: 4,
+				Pix:    []uint8{0x5A, 0xB4, 0xFF, 0xFF},
+			},
+		},
+		{
+			// Single-row image: every horizontally wrapped tap must land on
+			// a valid column instead of an unpadded zero pixel.
+			desc: "1x3 stripe wrap horizontal all-ones",
+			wrap: true,
+			kernel: &Kernel{[]float64{
+				1, 1, 1,
+			}, 3, 1},
+			value: &image.RGBA{
+				Rect:   image.Rect(0, 0, 3, 1),
+				Stride: 12,
+				Pix: []uint8{
+					0x0A, 0x05, 0x07, 0xFF,
+					0x14, 0x05, 0x07, 0xFF,
+					0x1E, 0x05, 0x07, 0xFF,
+				},
+			},
+			expected: &image.RGBA{
+				Rect:   image.Rect(0, 0, 3, 1),
+				Stride: 12,
+				// Each output is the sum of all three wrapped columns.
+				Pix: []uint8{
+					0x3C, 0x0F, 0x15, 0xFF,
+					0x3C, 0x0F, 0x15, 0xFF,
+					0x3C, 0x0F, 0x15, 0xFF,
+				},
+			},
+		},
+		{
+			// Kernel wider than the source image: wrap indices must cycle
+			// instead of landing on unpadded zeros. With five all-ones taps
+			// over a 2-column image, each output sums its own column three
+			// times and the other column two times.
+			desc: "2x1 image wrap with 5x1 all-ones kernel",
+			wrap: true,
+			kernel: &Kernel{[]float64{
+				1, 1, 1, 1, 1,
+			}, 5, 1},
+			value: &image.RGBA{
+				Rect:   image.Rect(0, 0, 2, 1),
+				Stride: 8,
+				Pix: []uint8{
+					0x0A, 0x00, 0x00, 0xFF, 0x14, 0x00, 0x00, 0xFF,
+				},
+			},
+			expected: &image.RGBA{
+				Rect:   image.Rect(0, 0, 2, 1),
+				Stride: 8,
+				// col0: 10*3 + 20*2 = 70; col1: 20*3 + 10*2 = 80
+				Pix: []uint8{
+					0x46, 0x00, 0x00, 0xFF, 0x50, 0x00, 0x00, 0xFF,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		actual := Convolve(c.value, c.kernel, &Options{Bias: 0, Wrap: c.wrap})
+		if !util.RGBAImageEqual(actual, c.expected) {
+			t.Errorf("%s:\nexpected:%v\nactual:%v\n", c.desc, util.RGBAToString(c.expected), util.RGBAToString(actual))
+		}
+	}
+}
+
 func BenchmarkConvolve3(b *testing.B) {
 	benchConvolve(b, 1024, 1024, NewKernel(3, 3))
 }

@@ -311,3 +311,113 @@ func TestPad(t *testing.T) {
 		}
 	}
 }
+
+// wrapIndex returns the pixel an EdgeWrap padded position must map to.
+func wrapIndex(paddedPos, pad, srcLen int) int {
+	r := (paddedPos - pad) % srcLen
+	if r < 0 {
+		r += srcLen
+	}
+	return pad + r
+}
+
+// extendIndex returns the pixel an EdgeExtend padded position must map to.
+func extendIndex(paddedPos, pad, srcLen int) int {
+	p := paddedPos - pad
+	if p < 0 {
+		p = 0
+	} else if p >= srcLen {
+		p = srcLen - 1
+	}
+	return pad + p
+}
+
+func TestPadExtremeSizes(t *testing.T) {
+	methods := []PadMethod{EdgeExtend, EdgeWrap}
+
+	// Exhaustive over small source dimensions and paddings, including
+	// one-row/one-column images and paddings larger than the source itself.
+	for w := 1; w <= 5; w++ {
+		for h := 1; h <= 5; h++ {
+			for padX := 0; padX <= 5; padX++ {
+				for padY := 0; padY <= 5; padY++ {
+					for _, method := range methods {
+						src := image.NewRGBA(image.Rect(0, 0, w, h))
+						for y := 0; y < h; y++ {
+							for x := 0; x < w; x++ {
+								pos := y*src.Stride + x*4
+								src.Pix[pos+0] = uint8((x*7 + y*13) % 256)
+								src.Pix[pos+1] = uint8((x*29 + y*3) % 256)
+								src.Pix[pos+2] = uint8((x*5 + y*11) % 256)
+								src.Pix[pos+3] = 0xFF
+							}
+						}
+
+						actual := Pad(src, padX, padY, method)
+						paddedW, paddedH := w+2*padX, h+2*padY
+						if actual.Bounds().Dx() != paddedW || actual.Bounds().Dy() != paddedH {
+							t.Fatalf("method %v Pad(%dx%d, pad %d,%d): wrong size %dx%d, want %dx%d",
+								method, w, h, padX, padY, actual.Bounds().Dx(), actual.Bounds().Dy(), paddedW, paddedH)
+						}
+
+						for y := 0; y < paddedH; y++ {
+							for x := 0; x < paddedW; x++ {
+								var ix, iy int
+								switch method {
+								case EdgeExtend:
+									ix = extendIndex(x, padX, w)
+									iy = extendIndex(y, padY, h)
+								case EdgeWrap:
+									ix = wrapIndex(x, padX, w)
+									iy = wrapIndex(y, padY, h)
+								}
+
+								gotPos := y*actual.Stride + x*4
+								wantPos := iy*actual.Stride + ix*4
+								for c := 0; c < 4; c++ {
+									if actual.Pix[gotPos+c] != actual.Pix[wantPos+c] {
+										t.Errorf("method %v Pad(%dx%d, pad %d,%d) at (%d,%d): channel %d got %d, want value of (%d,%d) %d",
+											method, w, h, padX, padY, x, y, c, actual.Pix[gotPos+c], ix, iy, actual.Pix[wantPos+c])
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestPadEdgeWrapSinglePixel(t *testing.T) {
+	// A 1x1 image under EdgeWrap must replicate its only pixel everywhere,
+	// regardless of how large the padding is.
+	src := &image.RGBA{
+		Rect:   image.Rect(0, 0, 1, 1),
+		Stride: 4,
+		Pix:    []uint8{0x10, 0x20, 0x30, 0xFF},
+	}
+
+	for _, pad := range []int{0, 1, 2, 5, 10} {
+		actual := Pad(src, pad, pad, EdgeWrap)
+		for i := 0; i < len(actual.Pix); i += 4 {
+			want := []uint8{0x10, 0x20, 0x30, 0xFF}
+			for c := 0; c < 4; c++ {
+				if actual.Pix[i+c] != want[c] {
+					t.Fatalf("EdgeWrap 1x1 with pad %d at pixel %d: got %v, want %v", pad, i/4, actual.Pix[i:i+4], want)
+				}
+			}
+		}
+	}
+}
+
+func TestPadEmpty(t *testing.T) {
+	// Empty images must return an empty result instead of dividing by zero
+	// inside the wrap index math.
+	for _, method := range []PadMethod{NoFill, EdgeExtend, EdgeWrap} {
+		actual := Pad(image.NewRGBA(image.Rect(0, 0, 0, 0)), 2, 2, method)
+		if !actual.Bounds().Empty() {
+			t.Errorf("method %v: expected empty bounds, got %v", method, actual.Bounds())
+		}
+	}
+}

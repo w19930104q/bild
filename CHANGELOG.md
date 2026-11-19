@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Fix `clone.Pad` with `EdgeWrap` on one-row/one-column images and whenever the padding is as large as (or larger than) the source dimension. The previous wrap index math landed on unpadded zero pixels, which also made wrap-mode convolution (`convolution.Options{Wrap: true}`) return wrong results on such images. Wrap indices now use Euclidean modulo and cycle correctly for any size and padding combination. Regular-size outputs are unchanged.
+- `clone.Pad` on an empty image now returns an empty image instead of dividing by zero inside the wrap index math.
+
 ## 0.17.1
 - Fix transparent pixels when resizing with the Box filter by @youdie006 in https://github.com/anthonynsimon/bild/pull/115
 - Bump golang.org/x/image from 0.44.0 to 0.45.0 to address CVE-2026-46603 in the VP8L decoder, reported in https://github.com/anthonynsimon/bild/pull/116

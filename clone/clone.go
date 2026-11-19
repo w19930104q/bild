@@ -46,6 +46,10 @@ func AsShallowRGBA(src image.Image) *image.RGBA {
 //
 //	result := Pad(img, 5,5, EdgeExtend)
 func Pad(src image.Image, padX, padY int, m PadMethod) *image.RGBA {
+	if src.Bounds().Empty() {
+		return image.NewRGBA(src.Bounds())
+	}
+
 	var result *image.RGBA
 
 	switch m {
@@ -118,25 +122,22 @@ func extend(img image.Image, padX, padY int) *image.RGBA {
 func wrap(img image.Image, padX, padY int) *image.RGBA {
 	dst := noFill(img, padX, padY)
 	paddedW, paddedH := dst.Bounds().Dx(), dst.Bounds().Dy()
+	srcW, srcH := paddedW-padX*2, paddedH-padY*2
 
 	parallel.Line(paddedH, func(start, end int) {
 		for y := start; y < end; y++ {
 			iy := y
-			if iy < padY {
-				iy = (paddedH - padY) - ((padY - y) % (paddedH - padY*2))
-			} else if iy >= paddedH-padY {
-				iy = padY - ((padY - y) % (paddedH - padY*2))
+			if iy < padY || iy >= paddedH-padY {
+				iy = padY + mod(y-padY, srcH)
 			}
 
 			for x := 0; x < paddedW; x++ {
 				ix := x
-				if ix < padX {
-					ix = (paddedW - padX) - ((padX - x) % (paddedW - padX*2))
-				} else if ix >= paddedW-padX {
-					ix = padX - ((padX - x) % (paddedW - padX*2))
+				if ix < padX || ix >= paddedW-padX {
+					ix = padX + mod(x-padX, srcW)
 				} else if iy == y {
 					// This only enters if we are not in a y-padded area or
-					// x-padded area, so nothing to extend here.
+					// x-padded area, so nothing to wrap here.
 					// So simply jump to the next padded-x index.
 					x = paddedW - padX - 1
 					continue
@@ -154,4 +155,15 @@ func wrap(img image.Image, padX, padY int) *image.RGBA {
 	})
 
 	return dst
+}
+
+// mod returns the Euclidean modulo of a by n, which is always in the range
+// [0, n). Unlike the % operator, it also yields a non-negative result when
+// a is negative. n must be greater than 0.
+func mod(a, n int) int {
+	r := a % n
+	if r < 0 {
+		r += n
+	}
+	return r
 }

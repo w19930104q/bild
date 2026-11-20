@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- `transform.Crop` now crops directly on the source image's color model instead of converting the whole image to RGBA first. For Gray, CMYK, Paletted and other standard image types, only the cropped region is converted and allocated; output pixels are unchanged and remain pixel-identical to the previous implementation across all color models.
+
 ## 0.17.1
 - Fix transparent pixels when resizing with the Box filter by @youdie006 in https://github.com/anthonynsimon/bild/pull/115
 - Bump golang.org/x/image from 0.44.0 to 0.45.0 to address CVE-2026-46603 in the VP8L decoder, reported in https://github.com/anthonynsimon/bild/pull/116

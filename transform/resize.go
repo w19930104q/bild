@@ -2,6 +2,7 @@ package transform
 
 import (
 	"image"
+	"image/draw"
 	"math"
 
 	"github.com/anthonynsimon/bild/clone"
@@ -34,16 +35,44 @@ func Resize(img image.Image, width, height int, filter ResampleFilter) *image.RG
 	return dst
 }
 
+// subImager is implemented by the standard library's concrete image types,
+// all of which can expose a zero-copy view of a rectangular region.
+type subImager interface {
+	SubImage(r image.Rectangle) image.Image
+}
+
 // Crop returns a new image which contains the intersection between the rect and the image provided as params.
 // Only the intersection is returned. If a rect larger than the image is provided, no fill is done to
 // the 'empty' area.
+//
+// The crop operates directly on the source image's color model: the source is sub-sampled
+// without converting its pixels, and only the cropped region is converted to RGBA. Cropping a
+// small region of a large Gray, CMYK or Paletted image therefore avoids converting the whole
+// image and only allocates memory for the returned region.
 //
 // Usage example:
 //
 //	result := transform.Crop(img, image.Rect(0, 0, 512, 256))
 func Crop(img image.Image, rect image.Rectangle) *image.RGBA {
+	intersection := rect.Intersect(img.Bounds())
+	if intersection.Empty() {
+		return image.NewRGBA(image.Rect(0, 0, 0, 0))
+	}
+
+	if sub, ok := img.(subImager); ok {
+		// SubImage shares the source's pixels and preserves its color model, so
+		// no conversion of the whole image takes place. Only the cropped region
+		// is converted into the returned RGBA image.
+		cropped := sub.SubImage(intersection)
+		dst := image.NewRGBA(intersection)
+		draw.Draw(dst, intersection, cropped, intersection.Min, draw.Src)
+		return dst
+	}
+
+	// Fallback for image implementations without a SubImage method: this keeps
+	// the previous behavior, including its full-image conversion.
 	src := clone.AsShallowRGBA(img)
-	return clone.AsRGBA(src.SubImage(rect))
+	return clone.AsRGBA(src.SubImage(intersection))
 }
 
 func resampleHorizontal(src *image.RGBA, width int, filter ResampleFilter) *image.RGBA {

@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- transform: rotate at non-special angles no longer materializes the 2x supersampled intermediate images, reducing peak memory by ~5x on large images with pixel-identical output
+
 ## 0.17.1
 - Fix transparent pixels when resizing with the Box filter by @youdie006 in https://github.com/anthonynsimon/bild/pull/115
 - Bump golang.org/x/image from 0.44.0 to 0.45.0 to address CVE-2026-46603 in the VP8L decoder, reported in https://github.com/anthonynsimon/bild/pull/116
